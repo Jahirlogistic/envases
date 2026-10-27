@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recibo y despacho en almacén</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1c2733;--muted:#5b6b7b;--brand:#0f4c81;--brand2:#e07a1f;--line:#dde3ea;--ok:#1b7f4b;--bad:#b3261e;--r:12px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--brand);color:#fff;padding:18px 16px}
+header h1{margin:0;font-size:1.25rem}
+header p{margin:2px 0 0;opacity:.85;font-size:.9rem}
+main{max-width:980px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:16px}
+h2{margin:0 0 8px;font-size:1.25rem;color:var(--brand)}
+h3{margin:20px 0 6px;font-size:1.05rem}
+label{display:block;font-weight:600;margin:12px 0 4px}
+input,select,button{font:inherit}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+button{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:10px 18px;cursor:pointer;font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}
+.msg{margin-top:10px;font-size:.92rem}.err{color:var(--bad)}.okc{color:var(--ok)}
+.demo{background:#fff4e5;border:1px solid #f3c98b;color:#7a4a00;padding:8px 12px;border-radius:8px;font-size:.85rem;margin-bottom:12px}
+nav.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px}
+nav.tabs button{background:#fff;color:var(--ink);border:1px solid var(--line);white-space:nowrap;padding:8px 14px}
+nav.tabs button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.tw{overflow-x:auto;margin:8px 0}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:#eaf1f8}
+ul{padding-left:20px;margin:6px 0}
+li{margin:3px 0}
+.note{background:#eaf1f8;border-left:4px solid var(--brand);padding:8px 12px;border-radius:6px;margin:10px 0;font-size:.92rem}
+.warn{background:#fff4e5;border-left-color:var(--brand2)}
+figure{margin:12px 0;text-align:center}
+figure svg{max-width:100%;height:auto}
+figcaption{font-size:.82rem;color:var(--muted);margin-top:4px}
+.bar{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:.9rem}
+.bar span.l{flex:0 0 150px}
+.bar i{display:block;height:18px;background:var(--brand);border-radius:4px}
+.bar b{font-weight:600;white-space:nowrap}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin:10px 0}
+.chip{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:.88rem;display:flex;gap:10px;align-items:flex-start}
+.chip em{flex:0 0 34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:700;color:#000;background:#e5e9ee;border:1px solid #0003}
+.chk li{list-style:none;margin:6px 0}
+.chk input{width:auto;margin-right:8px}
+.q{border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0}
+.q p{margin:0 0 6px;font-weight:600}
+.q label{font-weight:400;margin:4px 0;display:flex;gap:8px;align-items:flex-start}
+.q input{width:auto;margin-top:5px}
+.res{font-size:1.4rem;font-weight:700;margin-top:14px}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat{display:flex;gap:20px;margin:10px 0;color:var(--muted);font-size:.92rem}
+.hide{display:none}
+.ov{position:fixed;inset:0;z-index:1000;background:#fff;overflow:auto;-webkit-user-select:none;user-select:none}
+.ovin{max-width:820px;margin:0 auto;padding:0 18px 40px}
+.ovh{position:sticky;top:0;background:#fff;border-bottom:2px solid var(--brand);padding:10px 0;z-index:2;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center}
+.ovh span{font-size:.9rem;font-weight:600}
+.ban{padding:8px 12px;border-radius:8px;margin:10px 0;font-size:.92rem;background:#fff4e5;border:1px solid #f3c98b;color:#7a4a00}
+.ban.red{background:#fdecea;border-color:#f1a9a3;color:var(--bad)}
+.sm{padding:6px 12px;font-size:.85rem}
+@media(max-width:560px){.filters{grid-template-columns:1fr}.bar span.l{flex-basis:90px}}
+</style>
+</head>
+<body>
+<header><h1 id="ttl"></h1><p>Envases, embalajes, unitarización, rotulado y mercancías peligrosas</p></header>
+<main>
+<section id="reg" class="card hide">
+  <h2>Registro del estudiante</h2>
+  <div id="demo" class="demo hide">Modo demostración: URL_API sin configurar. Los datos no se guardan.</div>
+  <form id="fr" novalidate>
+    <label for="n">Nombre completo</label><input id="n" maxlength="100" required autocomplete="name">
+    <label for="i">Institución</label><input id="i" maxlength="100" required>
+    <label for="a">Asignatura</label><input id="a" maxlength="100" required>
+    <label for="c">Correo electrónico</label><input id="c" type="email" maxlength="100" required autocomplete="email">
+    <p><button id="bi" type="submit">Ingresar</button></p>
+    <div id="rm" class="msg"></div>
+  </form>
+</section>
+
+<section id="curso" class="hide">
+  <div id="who" class="note"></div>
+  <nav class="tabs" id="tabs"></nav>
+  <div id="panel" class="card"></div>
+</section>
+
+<section id="doc" class="card hide">
+  <h2>Panel docente</h2>
+  <div id="dm" class="msg"></div>
+  <div id="dp" class="hide">
+    <div class="filters">
+      <div><label for="fi">Institución</label><select id="fi"></select></div>
+      <div><label for="fa">Asignatura</label><select id="fa"></select></div>
+    </div>
+    <div class="stat"><span id="cnt"></span><span id="avg"></span></div>
+    <div class="tw"><table><thead><tr><th>Nombre</th><th>Institución</th><th>Asignatura</th><th>Correo</th><th>Nota (de 5)</th><th>Fecha</th><th>Incidencias</th></tr></thead><tbody id="tb"></tbody></table></div>
+  </div>
+</section>
+</main>
+
+<div id="ov" class="ov hide" role="dialog" aria-modal="true"><div class="ovin" id="ovin"></div></div>
+<script>
+const URL_API="PEGAR_URL_AQUI";
+const CLAVE_DOCENTE="PEGAR_CLAVE";
+const DEMO=URL_API.indexOf("PEGAR")>-1;
+const PUNTAJE=5, LIBRES=1, DESC=0.25, MAXINC=5;
+
+/* ---------- helpers de contenido ---------- */
+const T=(h,r)=>'<div class="tw"><table><thead><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+r.map(f=>'<tr>'+f.map(x=>'<td>'+x+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+const UL=a=>'<ul>'+a.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+const BARS=(a,max,u)=>a.map(x=>'<div class="bar"><span class="l">'+x[0]+'</span><i style="width:'+Math.round(x[1]/max*72)+'%"></i><b>'+x[1]+u+'</b></div>').join('');
+const FIG=(svg,cap)=>'<figure>'+svg+'<figcaption>'+cap+'</figcaption></figure>';
+
+const F_NIVELES='<svg viewBox="0 0 640 200" role="img" aria-label="Niveles de empaque"><rect x="8" y="8" width="624" height="184" rx="12" fill="#eaf1f8" stroke="#0f4c81" stroke-width="2"/><text x="24" y="30" font-size="14" font-weight="700" fill="#0f4c81">Terciario: pallet con canastas y película plástica (embalaje de transporte)</text><rect x="60" y="48" width="520" height="128" rx="10" fill="#fff4e5" stroke="#e07a1f" stroke-width="2"/><text x="76" y="70" font-size="14" font-weight="700" fill="#9a520f">Secundario: canasta que agrupa las botellas</text>'+[0,1,2,3,4].map(i=>'<g transform="translate('+(110+i*88)+',84)"><rect x="12" y="0" width="16" height="22" fill="#9bb7d3" stroke="#0f4c81"/><rect x="0" y="22" width="40" height="62" rx="6" fill="#9bb7d3" stroke="#0f4c81"/></g>').join('')+'<text x="320" y="172" text-anchor="middle" font-size="13" fill="#1c2733">Primario: botella, en contacto directo con el producto</text></svg>';
+const F_PALLET='<svg viewBox="0 0 600 230" role="img" aria-label="Pallets"><rect x="20" y="15" width="240" height="200" fill="#e9d3b0" stroke="#7a5a2a" stroke-width="2"/><text x="140" y="108" text-anchor="middle" font-weight="700">Americano</text><text x="140" y="128" text-anchor="middle" font-size="14">1000 x 1200 mm</text><text x="140" y="146" text-anchor="middle" font-size="14">1,20 m²</text><rect x="330" y="55" width="240" height="160" fill="#e9d3b0" stroke="#7a5a2a" stroke-width="2"/><text x="450" y="128" text-anchor="middle" font-weight="700">Europallet</text><text x="450" y="148" text-anchor="middle" font-size="14">800 x 1200 mm</text><text x="450" y="166" text-anchor="middle" font-size="14">0,96 m²</text></svg>';
+const stack=(x0,brick)=>[0,1,2,3].map(r=>[0,1,2].map(c=>'<rect x="'+(x0+c*62+(brick&&r%2?31:0))+'" y="'+(20+r*30)+'" width="60" height="28" fill="'+(brick?'#f3c98b':'#9bb7d3')+'" stroke="#1c2733"/>').join('')).join('');
+const F_APILA='<svg viewBox="0 0 520 170" role="img" aria-label="Apilamiento de cajas"><g>'+stack(20,0)+'</g><g>'+stack(300,1)+'</g><text x="113" y="157" text-anchor="middle" font-size="14" font-weight="700" fill="#1b7f4b">En columna: 100 % de resistencia</text><text x="393" y="157" text-anchor="middle" font-size="14" font-weight="700" fill="#b3261e">Trabado: hasta 45 % menos</text></svg>';
+
+const CLASES=[['1','#f59c3c','Explosivos','Divisiones 1.1 a 1.6. Pólvora, municiones, dinamita.'],['2.1','#e5393b','Gas inflamable','Gas propano, recargas de encendedores, aerosoles.'],['2.2','#3aa35a','Gas no inflamable, no tóxico','Cilindros de gas comprimido no tóxico.'],['2.3','','Gas tóxico','Gas que daña la salud por inhalación.'],['3','','Líquidos inflamables','Gasolina, pinturas, barnices, lacas, alcohol.'],['4.1','','Sólidos inflamables','Sólidos que se encienden con llama.'],['4.2','','Combustión espontánea','Sustancias que se inflaman por sí solas.'],['4.3','#4a7fd1','Peligrosas al mojarse','Emiten gases inflamables con agua. Magnesio, fósforo.'],['5','','Comburentes y peróxidos orgánicos','Facilitan la combustión. Abonos de nitrato amónico.'],['6','','Tóxicas e infecciosas','Insecticidas, plaguicidas, virus, bacterias.'],['7','','Material radiactivo','Uranio.'],['8','','Corrosivos','Ácido fosfórico, ácido sulfúrico, mercurio.'],['9','','Diversas','Materiales magnetizados, motores de combustión, equipos con baterías.']];
+const F_CLASES='<div class="chips">'+CLASES.map(c=>'<div class="chip"><em'+(c[1]?' style="background:'+c[1]+'"':'')+'>'+c[0]+'</em><span><b>'+c[2]+'</b><br>'+c[3]+'</span></div>').join('')+'</div>';
+
+/* ---------- CONTENIDO (editable) ---------- */
+const P=s=>'<p>'+s+'</p>';
+const N=s=>'<div class="note">'+s+'</div>';
+const W=s=>'<div class="note warn">'+s+'</div>';
+const CAPAS=a=>'<svg style="max-width:420px" viewBox="0 0 480 '+(a.length*34+12)+'" role="img" aria-label="Capas del material">'+a.map((c,i)=>'<rect x="10" y="'+(8+i*34)+'" width="200" height="30" fill="'+c[1]+'" stroke="#1c2733"/><text x="225" y="'+(28+i*34)+'" font-size="14" fill="#1c2733">'+c[0]+'</text>').join('')+'</svg>';
+const F_HOJA=CAPAS([['Barniz o aceite sanitario','#f3e3b3'],['Película de pasivación','#d9e4f0'],['Estaño libre','#e6e6e6'],['Aleación hierro-estaño (FeSn2)','#c7c7d1'],['Acero base (se repite en la otra cara)','#9aa5b1']]);
+const F_TETRA=CAPAS([['1. Polietileno exterior','#d9e4f0'],['2. Impresión de decoración','#f3c98b'],['3. Papel','#e9d3b0'],['4. Polietileno','#d9e4f0'],['5. Lámina de aluminio (foil)','#c7c7d1'],['6. Polietileno','#d9e4f0'],['7. Polietileno interior','#d9e4f0']]);
+const F_ONDA=(function(){let p='M20 70';for(let x=20;x<=500;x+=4)p+=' L'+x+' '+(70+26*Math.sin((x-20)/9));return '<svg viewBox="0 0 520 150" role="img" aria-label="Estructura del cartón corrugado"><rect x="20" y="36" width="480" height="9" fill="#e9d3b0" stroke="#7a5a2a"/><rect x="20" y="104" width="480" height="9" fill="#e9d3b0" stroke="#7a5a2a"/><path d="'+p+'" fill="none" stroke="#0f4c81" stroke-width="3"/><text x="20" y="26" font-size="13">Liner exterior (kraftliner o testliner)</text><text x="20" y="135" font-size="13">Liner interior</text><text x="330" y="26" font-size="13" fill="#0f4c81">Papel ondulado (canal)</text></svg>'})();
+const F_FLUJO='<svg viewBox="0 0 640 110" role="img" aria-label="Flujo del almacén"><defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0L8 4L0 8z" fill="#0f4c81"/></marker></defs>'+[['Recibo',10],['Inspección',175],['Almacenamiento',340],['Despacho',505]].map((s,i)=>'<rect x="'+s[1]+'" y="25" width="125" height="60" rx="10" fill="#eaf1f8" stroke="#0f4c81" stroke-width="2"/><text x="'+(s[1]+62)+'" y="61" text-anchor="middle" font-size="14" font-weight="700" fill="#0f4c81">'+s[0]+'</text>'+(i<3?'<line x1="'+(s[1]+127)+'" y1="55" x2="'+(s[1]+160)+'" y2="55" stroke="#0f4c81" stroke-width="2" marker-end="url(#ar)"/>':'')).join('')+'</svg>';
+const F_BARRAS='<svg viewBox="0 0 360 120" role="img" aria-label="Código de barras"><rect x="10" y="10" width="340" height="100" fill="#fff" stroke="#dde3ea"/>'+[3,1,2,1,1,3,2,1,3,1,1,2,3,1,2,2,1,3,1,2,1,1,3,2,1,2,3,1,1,2,1,3,2,1,1,2].map((w,i,a)=>{let x=24;for(let k=0;k<i;k++)x+=a[k]*2+(k%2?0:0)+2;return i%2===0?'<rect x="'+x+'" y="20" width="'+w*2+'" height="62" fill="#1c2733"/>':''}).join('')+'<text x="180" y="100" text-anchor="middle" font-size="13">Símbolo (barras) y código (números)</text></svg>';
+
+const CONTENIDO={
+titulo:"Recibo y despacho de mercancía en almacén",
+pestanas:[
+
+{id:"t1",titulo:"1. Envase, empaque y embalaje",html:
+'<h2>Envase, empaque y embalaje</h2>'+
+P('El envase permite contener y conservar el producto. Gracias a él se realizan el almacenamiento, el transporte y la distribución de las cargas. Conserva, protege y da seguridad al producto hasta el consumidor final, facilita la trazabilidad y refleja el estilo del productor mediante imagen, color y forma.')+
+'<h3>Definiciones</h3>'+
+T(['Término','Definición'],[
+['Envase','Recipiente rígido. El producto toma la forma del recipiente. Ejemplo: vidrio, polipropileno duro.'],
+['Empaque','Recipiente flexible que toma la forma del producto. Ejemplo: bolsas plásticas de tienda, bultos de concentrado para animales. El uso de uno u otro término es indiferente.'],
+['Embalaje','Conjunto de materiales, accesorios y elementos (envase, empaque, envoltura) acondicionados para transporte, almacenamiento y distribución, de modo que el producto llegue en perfecto estado.'],
+['Packaging','Término inglés que engloba diseño, selección de materiales, construcción y distribución del embalaje. Incluye las operaciones de envasar, embalar, etiquetar, envolver y precintar.'],
+['PAR','Unión entre el envase y el producto que contiene. El producto viene "vestido" con una única cubierta que lo identifica.'],
+['Unitarización','Agrupación de la mercancía en formas convencionales para unificarla.'],
+['Corrugado','Cartón empleado para fabricar cajas. También se llama así a las cajas mismas.'],
+['Materiales complejos','Material de embalaje compuesto por varias capas de diferente composición.']])+
+'<h3>Evolución del packaging</h3>'+
+T(['Período','Función del packaging'],[
+['1920-1950','Proteger el producto.'],
+['1950-1960','Proteger e informar.'],
+['1960-1970','Proteger, informar y permitir la venta.'],
+['1970-1980','Proteger, informar, permitir la venta e identificar la marca.'],
+['2000 en adelante','Además, objeto de identificación personal y centro de discusión ecológica. Ahorra costos al consumidor, identifica estatus, integra ergonomía y cuida el medioambiente.']])+
+P('El empaque es el "vendedor silencioso": comunica con colores, formas y materiales, no con palabras. Para el almacén importa por una razón práctica: el mismo empaque que vende debe resistir manipulación, apilamiento y transporte.')+
+'<h3>Niveles de empaque</h3>'+
+FIG(F_NIVELES,'Figura 1. Empaque primario, secundario y terciario (ejemplo: cerveza).')+
+UL(['<b>Primario:</b> está en contacto directo con el producto. Ejemplo: la botella de vidrio con cerveza.','<b>Secundario:</b> contiene al primario y suele servir de elemento de agrupación. Ejemplo: la canasta que contiene las botellas.','<b>Terciario:</b> conjunto de canastas contenidas en un pallet y unificadas por película plástica. Constituye propiamente el embalaje de transporte o expedición.'])+
+'<h3>Funciones del envase</h3>'+
+T(['Función','Alcance'],[
+['Contener','Presentar el producto en las cantidades, características y calidad debidas.'],
+['Proteger','Contra choques, luz, humedad, grasas, ácidos, oxígeno y, en algunos casos, vibraciones y peligros de la manipulación. De ahí que la selección del material sea clave en el diseño.'],
+['Transportar','Permite que los movimientos se hagan con mayor facilidad y seguridad, sin importar el estado físico del producto.'],
+['Comercial','Diferencia al producto de la competencia, facilita su manipulación y administración en inventarios y ayuda a su permanencia en la góndola.'],
+['Social y ecológica','La industria del packaging emplea mano de obra y aporta al PIB. Busca un uso responsable de materiales y empaques.'],
+['Comunicación','Argumentación, diferenciación, identificación, información, percepción y seducción.']])+
+'<h3>Riesgos que debe cubrir el empaque</h3>'+
+T(['Riesgo','Ejemplos'],[
+['Físicos','Humedad, resecamiento indeseado, luz, pérdida de peso o consistencia, roturas por roedores o insectos.'],
+['Mecánicos','Golpes y vibraciones. Compresión o aplastamiento en el almacenamiento y durante el transporte.'],
+['Químicos','Contaminación microbiana, migración de gases como el oxígeno, respiración de frutas y carnes, reacción entre el producto y el material del empaque.'],
+['Térmicos','Luz y cambios de temperatura en almacenamiento, transporte o exhibición. Ejemplo: empaques de leche y derivados.']])+
+N('En alimentos, el empaque debe proteger el producto en todo el ciclo: cosecha, transporte a la finca, limpieza, selección, encerado, empacado, acopio, transporte, comercialización, almacenamiento, exhibición, venta y consumo final.')+
+'<h3>Características funcionales</h3>'+
+T(['Característica','Qué garantiza'],[
+['Resistencia','Protección durante manipulación en transporte y distribución.'],
+['Hermeticidad','Barrera entre el medio externo y el contenido, sin intercambio gaseoso.'],
+['Cierre','Apertura y cierre seguro y funcional.'],
+['Inviolabilidad','Que el producto no haya sido usado antes de llegar al consumidor.'],
+['Dispensación','Dosis adecuada sin accesorios de difícil consecución. Goteros y cucharas forman parte del par.'],
+['Compatibilidad','Entre el contenido, el material y el diseño del empaque.'],
+['Ergonomía','Peso, forma de abrir y destapar ajustados al usuario.'],
+['Versatilidad','Adaptación a diferentes circunstancias de manipulación y tipos de consumidor.'],
+['Comunicación','Información clara y veraz sobre contenido y modo de empleo.'],
+['Universalidad','Satisfacer varias culturas y cruzar fronteras.']])+
+'<h3>El embalaje en la cadena logística</h3>'+
+P('Desde la exportación, el embalaje permite que el producto llegue al consignatario (persona a quien llega la mercancía) sin deterioros ni mermas. Está ligado al material de construcción, a la naturaleza de la carga y a su valor comercial.')+
+UL(['<b>Valor de la carga:</b> casi siempre, a mayor costo de la carga, más elaborado el embalaje.','<b>Bienes de capital:</b> de alto valor, dimensiones y peso grandes. Se embalan en guacales (cajas de madera, también huacales) y se protegen con película plástica u otro material auxiliar.','<b>Materias primas:</b> en grandes cantidades, sin embalaje, a granel. Algunas van en semigranel, en bolsas grandes de plástico o unidades de carga especial.','<b>Perecederos:</b> en medio tropical requieren refrigeración y material que conserve temperatura, respiración y propiedades físicas, químicas y organolépticas.','<b>Mercancía peligrosa:</b> Naciones Unidas propone un protocolo estricto de embalaje. En Colombia lo regula la NTC 4702-2.','<b>Modo de transporte:</b> acuático, terrestre o aéreo determina el tipo de embalaje.'])+
+T(['Factor al que se expone la carga','Riesgo asociado'],[
+['Cargue, descargue y manipuleo','Golpes, caídas, choque, maltrato'],
+['Apilamiento en almacenes','Aplastamiento, compresión'],
+['Factores climáticos','Calor, frío, luz, humedad relativa, aireación, ventilación'],
+['Inspecciones aduaneras','Apertura y cierre del embalaje, maltratos'],
+['Transporte','Vibración, empuje, aceleración, balanceo'],
+['Seguridad de la carga','Saqueo, hurto, mermas, contaminación'],
+['Cualidades propias del producto','Sabor, color, transferencia de gases']])},
+
+{id:"t2",titulo:"2. Materiales de embalaje",html:
+'<h2>Materiales de embalaje</h2>'+
+P('La selección del material es un punto crítico para la protección y conservación del producto, más aún en alimentos y medicamentos. Participación por material en el mercado colombiano de embalajes:')+
+BARS([['Papel y cartón',43],['Plástico',41],['Metal',8],['Vidrio',8]],45,' %')+
+N('Papel, cartón y plástico suman 84 % del mercado colombiano. Por eso son los que más verás en recepción.')+
+
+'<h3>Madera</h3>'+
+P('Fue el primer material de embalaje: toneles y barriles. Hoy se usa sobre todo en estibas o pallets, cajas de madera prensada para transporte aéreo, y guacales y cajas para mercancías, maquinaria, frutas, bebidas y porcelana. El pino pátula es una variedad muy usada.')+
+T(['Ventajas','Desventajas'],[
+['Económica y de fácil consecución.','Se contamina y se deteriora con facilidad.'],
+['Requiere poca tecnología y poco mantenimiento.','Costo de retorno de los embalajes considerable.'],
+['Reutilizable, reciclable, renovable e higiénica.','Alto costo del tratamiento contra parásitos.'],
+['Consume poca energía de fabricación.','Peso considerable: desventaja logística.'],
+['Se enfría rápido y se calienta lento. Facilita la transpiración de los alimentos.','Un mal manejo de los bosques altera el equilibrio ecológico.']])+
+UL(['No debe poseer pigmentos ni olores que se transmitan al contenido.','Es higroscópica: cede y absorbe humedad. La recién cortada supera 50 % de humedad. Para trabajo debe estar entre 12 y 18 %.','Caso típico de uso inadecuado: tomates en cajas de madera en países latinoamericanos, con altas pérdidas por sobrepeso, sobremanipuleo y magullamiento.'])+
+
+'<h3>Papel y cartón</h3>'+
+P('El papel es una lámina plana de fibras celulósicas de origen vegetal, fuertemente entrelazadas. Proviene de la madera. No se recomienda el papel periódico como empaque de alimentos por el desprendimiento de tintas y los problemas de asepsia.')+
+T(['Material','Densidad (g/m²)'],[['Papel','Menor de 130'],['Cartulina','130 – 240'],['Cartón compactado','Más de 240']])+
+T(['Etapa de fabricación','Qué ocurre'],[
+['Molienda','Se tritura la madera hasta obtener pasta (fibras en agua). Con fibras cortas y algo de largas se fabrica el papel de embalaje.'],
+['Depuración','Cocción química y lavado para retirar impurezas.'],
+['Refinación','Blanqueo para homogeneizar el color kraft. Se pueden agregar colas y tinturas.'],
+['Formación y prensado','La pasta se escurre sobre malla y pasa por rodillos para reducir agua y aumentar resistencia.'],
+['Secado y calandrado','Rodillos calentados con vapor. El calandrado da calibre uniforme, textura y brillo.'],
+['Enrollado','Se dispone en bobinas para distribución.']])+
+P('Para obtener papeles antigrasos, antioxidantes o filtrantes de luz ultravioleta se agregan sustancias o recubrimientos (ceras, parafinas, polímeros) durante el proceso.')+
+
+'<h3>Metal</h3>'+
+P('Alrededor de 1810 aparece en Inglaterra el envase de hojalata para alimentos. En 1892 nace el empaque colapsible. En 1958 aparece el envase de aluminio para bebidas.')+
+T(['Propiedades','Desventajas'],[
+['Hermeticidad y estanqueidad: la primera es barrera de afuera hacia adentro, la segunda impide fugas de adentro hacia afuera.','Imagen de tecnología antigua, sobre todo el ferroso.'],
+['Mínima interacción química con el producto gracias a películas protectoras.','Corrosión y oxidación por humedad y ácidos.'],
+['Alta resistencia mecánica, al impacto y a la esterilización.','Peso, aunque el aluminio es ligero.'],
+['Opacidad a la luz y radiaciones.','Si recibe un impacto debe descartarse: la película protectora puede desprenderse y reaccionar el producto con la lámina.'],
+['Reciclable y separable con imanes.','']])+
+'<h3>Hojalata</h3>'+
+P('Acero con bajo contenido de carbono (0,03 – 0,13 %) recubierto por ambas caras con una capa de estaño. Su espesor bajó de 0,20 mm en los años setenta a 0,14 mm actual para no bebidas, y a 0,09 mm para bebidas.')+
+FIG(F_HOJA,'Figura 2. Corte transversal de una lámina de hojalata.')+
+UL(['<b>Chapa cromada (TFS):</b> acero con capa de cromo metálico y óxido de cromo, más una lámina de aceite. Se usa en conservas de vegetales y tapas de botella (checas).','<b>Aluminio:</b> aleación de pureza superior a 93 %, con Mn o Mg. Es ligero, dúctil, reciclable y resistente a la oxidación. Es caro por su energía de fabricación y de baja resistencia mecánica frente a la hojalata. La lata de bebida pasó de 65 g en los años sesenta a unos 14 g.'])+
+W('Doble cierre: junta hermética del cuerpo con la tapa. Un mal cierre se debe a presión insuficiente, apriete excesivo o insuficiente, o pestañas pequeñas. De él depende que la esterilización se conserve. Una lata con cierre deformado o abombada no debe recibirse.')+
+
+'<h3>Plásticos</h3>'+
+P('Plástico es sinónimo de polímero. Alrededor del 5 % del petróleo extraído se destina a su producción. Los lineales y ramificados son termoplásticos (se ablandan con el calor). Los entrecruzados son termoestables.')+
+T(['Ventajas','Inconvenientes'],[
+['Flexibilidad, resistencia a la fatiga y al impacto.','Deformación térmica: cambian de dimensiones con la temperatura.'],
+['Baja densidad: puede ser diez veces más ligero que el vidrio.','Inflamabilidad.'],
+['Resistencia a corrosión, ácidos y soluciones salinas.','Se rayan con facilidad.'],
+['Propiedades ópticas: transparencia, traslucidez, opacidad.','Baja resistencia a rayos UV, intemperie y temperaturas altas.'],
+['Higiene, seguridad y versatilidad.','Residuos plásticos y alto consumo energético.']])+
+T(['SPI','Plástico','Notas útiles para el almacén'],[
+['1','PET','"Vidrio plástico". Botellas de bebidas. Resiste hasta 90 °C. Buena barrera a gases.'],
+['2','HDPE (PEAD)','Bolsas industriales, abonos, cemento. Mejor resistencia mecánica y química que el LDPE.'],
+['3','PVC','Botellas, bandejas, películas retráctiles. Resiste menos de 80 °C.'],
+['4','LDPE (PEBD)','El más usado. Bolsas, film. Flexible, impermeable al vapor de agua y barato. Difícil de imprimir.'],
+['5','PP','Botellas, tapas, bandejas, sacos, zunchos. Resiste menos de 135 °C.'],
+['6','PS','Vasos, bandejas. El expandido (icopor) amortigua y aísla, pero su carga electrostática atrae polvo en bodegas.'],
+['7','Otros','Materiales complejos, multicapas y laminados.']])+
+N('El poliestireno expandido tiene baja reciclabilidad y degradabilidad. En algunos países no se permite como material de embalaje.')+
+
+'<h3>Vidrio</h3>'+
+P('Duro, frágil y transparente. Conserva sus propiedades en el reciclaje. Se compone de sílice, sosa o potasa (fundente) y cal (estabilizante). Fases: preparado, fusión, moldeo y acabado.')+
+T(['Propiedad','Valor o efecto'],[
+['Densidad','2,5 g/cm³'],
+['Choque térmico','Recocido: 60 °C. Templado: 240 °C.'],
+['Transparencia','90 % de la luz se transmite.'],
+['Inercia química','Neutralidad organoléptica. Imagen de limpieza e higiene.']])+
+UL(['<b>Desventajas:</b> peso alto (determina costos de transporte y almacenamiento), fragilidad a golpes, moldes seriados y producción costosa, no viable en volúmenes menores a 100.000 unidades por moldeo.','<b>Botellas:</b> cuello angosto, 0,1 a 2,0 litros, para líquidos y semilíquidos. <b>Frascos:</b> cuello ancho, para sólidos, semilíquidos o líquidos.','Todo envase de vidrio necesita cierre de metal o plástico para evitar pérdidas, formar barrera y dar inviolabilidad.','Una botella de vino de 750 cm³ pasó de 450 g en 1970 a unos 250 g a mediados de los noventa.','Los corchos exigen 60 a 70 % de humedad relativa. Por eso las botellas de vino se guardan en posición horizontal.'])+
+
+'<h3>Materiales complejos o multicapa</h3>'+
+P('Unen varios materiales que se complementan: papel, aluminio (foil), películas plásticas, resinas, adhesivos, tintas y lacas. Optimizan barrera de gases, tenacidad, resistencia al rayado y a la punción, y reducen el costo del embalaje. El ejemplo más común es el envase larga vida de derivados lácteos, aparentemente de cartón.')+
+FIG(F_TETRA,'Figura 3. Siete capas del envase tipo tetra brick.')+
+P('Cuatro empresas dominan el negocio: Tetrapack (tetra brick), PKL (combibloc), Elopack (pure pack) e International Paper.')},
+
+{id:"t3",titulo:"3. Cartón corrugado",html:
+'<h2>Cartón corrugado y cajas</h2>'+
+P('Con el cartón corrugado se fabrican las cajas más comunes en el almacén. Está formado por dos láminas gruesas unidas en el medio por otra de forma ondulada. Se usan papeles llamados krafliner o testliner y la onda se forma haciendo pasar el papel entre dos rodillos corrugadores.')+
+FIG(F_ONDA,'Figura 4. Estructura del cartón corrugado.')+
+'<h3>Clasificación por número de caras</h3>'+
+UL(['Una cara.','Sencillo.','Doble.','Triple.'])+
+'<h3>Clasificación por tipo de onda</h3>'+
+T(['Perfil','Espesor aprox.','Canales en 30 cm lineales'],[['Onda grande (A)','5 mm','110 a 116'],['Onda mediana (C)','4 mm','123 a 137'],['Onda pequeña (B)','3 mm','152 a 159'],['Microcanal (E)','2 mm','294 a 313']])+
+'<h3>Tipos de cajas</h3>'+
+T(['Tipo','Descripción'],[['Una sola pieza o estándar','Caja de cuerpo único.'],['Dos piezas o telescópicas','Tapa y fondo que encajan.'],['Con aletas','Aletas cortas, cruzadas, solapadas, etc.'],['Diseños especiales','Troqueladas a medida.']])+
+'<h3>ECV: esfuerzo a la compresión vertical</h3>'+
+P('Es un dato de laboratorio obtenido sobre una probeta del cartón. Un ECV mayor indica mejor capacidad de resistencia a la compresión, es decir, la caja soporta operaciones de distribución a mayor escala. A mayor calibre, mayor costo de materia prima y tecnología. Las compras en volumen reducen el costo por economías de escala.')+
+T(['Tipo de distribución','ECV (kgf/m)'],[['Urbana','430 – 520'],['Nacional','520 – 800'],['Exportación','Mayor de 800']])+
+'<h3>Cómo arrumar cajas de cartón</h3>'+
+P('El SENA compara las cajas con la estructura de un edificio: su mayor resistencia está en las esquinas y equivale al trabajo de las columnas. Las cajas de abajo reciben la compresión de las de arriba. Por eso se aprovecha mejor la resistencia almacenándolas en forma de columna.')+
+FIG(F_APILA,'Figura 5. Arrume en columna frente a arrume trabado.')+
+W('Almacenadas en forma trabada, simulando una pared de ladrillos, las cajas pierden hasta 45 % de su resistencia inicial. En el almacén: arrume en columna y respete el arrume máximo del rótulo.')+
+UL(['Evite posiciones inadecuadas al paletizar: cajas que sobresalen del pallet pierden resistencia.','Norma colombiana: NTC 452, cajas de cartón corrugado, especificaciones.','El sello con el ECV impreso en la caja identifica su resistencia. Verifíquelo al recibir.'])},
+
+{id:"t4",titulo:"4. Medios auxiliares",html:
+'<h2>Medios auxiliares de protección</h2>'+
+P('El embalaje comprende también un conjunto de elementos para proteger la carga durante el transporte nacional y, de forma obligatoria, el internacional. Estos medios auxiliares aumentan la seguridad de la mercancía en distribución, transporte y almacenamiento.')+
+T(['Medio auxiliar','Uso','En el almacén'],[
+['Película extensible (stretch)','Unitarización de la carga en pallets.','Fija las cajas al pallet para moverlas como una unidad.'],
+['Bolsas de polietileno','Embalaje de carga especial empacada al vacío.','Verifique que no estén perforadas.'],
+['Bolsas deshumidificadoras (sílica gel)','Absorben la humedad del ambiente.','Útiles en carga sensible a la humedad.'],
+['Burbupack','Bolsas y tiras con burbujas de aire que amortiguan golpes.','Relleno de mercancía frágil.'],
+['Poliestireno expandido (icopor)','Bloques sólidos o recortes. Amortigua.','Atrae polvo por carga electrostática.'],
+['Bloques de poliuretano','Misma función que el poliestireno.','Protección de equipos delicados.'],
+['Flejes o zunchos metálicos o plásticos','Amarrar y sujetar la carga.','Revise que no estén flojos.'],
+['Esquineros (plástico o cartón)','Alinean y protegen las cajas unitarizadas.','Evitan el daño de aristas al fletar.'],
+['Bolsas inflables o de aire','Separan pallets entre sí o de las paredes del contenedor y amortiguan.','Se usan en el cargue de contenedores.'],
+['Paja, papel y viruta','Material económico e higroscópico (capta agua).','Algunos países lo prohíben por motivos fitosanitarios.'],
+['Eslingas','Cuerdas o cintas de acero, plástico o cabuya que sujetan la carga al camión, contenedor o bodega de barco.','Sirven también para izar cargas.']])+
+W('Antes de usar paja, viruta o madera suelta como relleno en una exportación, confirme la norma fitosanitaria del país de destino.')},
+
+{id:"t5",titulo:"5. Unitarización y pallets",html:
+'<h2>Unitarización y pallets</h2>'+
+P('Tras la Segunda Guerra Mundial, el auge mercantil impulsó la agrupación de la carga. Antes, las mercancías se manipulaban sueltas, con más costos, riesgos y tiempos. Unitarizar es agrupar la mercancía en unidades convencionales para manipularla en cargue, descargue, almacenamiento y transporte, nacional o internacional.')+
+T(['Hito','Dato'],[
+['Tonel o barril','Primer medio unitarizador. De ahí viene la tonelada como referencia de peso.'],
+['1870','Primeras cajas de cartón, en Estados Unidos.'],
+['1924','Primera patente de pallet, en Estados Unidos.'],
+['1939','Carl Clark diseña un pallet de madera similar al actual.'],
+['Segunda Guerra Mundial','Se masifica el pallet y se desarrolla el contenedor moderno.'],
+['1956','Malcolm McLean zarpa de Newark a Houston con la primera caja metálica unitarizadora.'],
+['1963','La naviera Sealand abre la primera línea de transporte contenedorizado.']])+
+'<h3>Medios unitarizadores</h3>'+
+UL(['<b>Cajas, pallets y contenedores:</b> los principales a nivel mundial. Pallet y contenedor tienen sección propia.','<b>Big Bag:</b> saco de gran capacidad, generalmente de polipropileno, de 0,5 a 2,0 toneladas. Con asas para montacargas o grúa y válvulas de llenado y descarga. Sirve para granos, minerales en polvo y gránulos de roca. Es reutilizable, ocupa poco espacio, reduce derrames y mejora el control de inventarios.','<b>Carga preeslingada:</b> sacos o fardos agrupados con eslinga. Perdió vigencia con pallets y big bags.','<b>Furgón:</b> van de carros que se intercambian como unidad de carga.'])+
+'<h3>El pallet</h3>'+
+P('También llamado paleta, tarima o estiba. La NTC 445 lo define como plataforma de carga con dos bases separadas por soportes, o una base única sobre patas de altura suficiente para manipularse con camiones montacargas o paleteros.')+
+UL(['Agrupar la mercancía (medio unitarizador).','Facilitar la manipulación. Se valora su resistencia al maltrato y a los cambios climáticos.','Permitir el intercambio de modo y medio de transporte. De ahí la importancia de su peso.','Proteger la mercancía durante el viaje.','Permitir la identificación de la carga unitarizada.'])+
+'<h3>Tipos por material</h3>'+
+T(['Material','Característica'],[
+['Madera','90 a 95 % del mercado mundial. Exige protocolo de tratamiento contra microorganismos.'],
+['Metal (acero, aluminio)','Mayor resistencia. Mayor inversión inicial, recuperable por su larga duración. El aluminio se usa en transporte aéreo.'],
+['Plástico','Bajo peso e higiene. Productos refrigerados o congelados, como alimentos.'],
+['Cartón','Higiénico y desechable, de un solo uso. Sector agrícola y agroalimentario.'],
+['Fibra de madera','Madera picada, prensada y aglomerada con resinas. Reutilizable en nuevos pallets.']])+
+'<h3>Tipos por forma</h3>'+
+UL(['Doble entrada y cuatro entradas.','Base única y doble base.','Alado y plano.','Reversible.','Caja pallet y con pilares.'])+
+'<h3>Medidas</h3>'+
+FIG(F_PALLET,'Figura 6. Pallet americano y europeo.')+
+P('Las medidas dependen de la carga, pero el comercio generalizó dos: el americano (1.000 x 1.200 mm, 1,20 m²) y el europeo o europallet (800 x 1.200 mm, 0,96 m²).')+
+'<h3>Aprovechamiento del espacio</h3>'+
+P('Es la relación entre el espacio ocupado por los pallets y el espacio interior disponible del vehículo o contenedor. Si supera 80 %, el vehículo está bien utilizado. En Colombia, el peso promedio por pallet en distribuidores y almacenes de cadena es menor de 500 kg.')+
+'<h3>Normas</h3>'+
+T(['Norma','Tema'],[
+['ISO 445','Pallets para manipulación de materiales.'],
+['ISO 3676','Tamaños y dimensiones.'],
+['ISO 3394','Dimensiones de paquetes rectangulares rígidos y paquetes de transporte.'],
+['ISO 8611','Pallets: métodos de ensayo y requisitos de funcionamiento.'],
+['ISO 12777','Métodos de ensayo para juntas de pallets.'],
+['ISO 15629 y 18334','Calidad del ensamble y fijaciones de pallets de madera nuevos y usados.'],
+['ISO 18613','Reparación de pallets planos de madera.'],
+['NTC 4680 (Icontec)','Estiba intercambiable de madera, utilizable por una faz. Primera norma en 1999, actualizada en 2013.']])+
+'<h3>NIMF-15: pallets de madera en comercio exterior</h3>'+
+P('La FAO adopta la NIMF-15 para reducir el riesgo de introducir plagas y enfermedades forestales. En Colombia la acoge el ICA mediante la Resolución 1079 de 2004. Todo pallet de madera usado en comercio internacional debe tener tratamiento de sanitización, evidenciado con el sello estampado en el pallet.')+
+T(['Exentos de tratamiento fitosanitario','Detalle'],[
+['Madera delgada','Embalaje fabricado de madera de 6 mm de espesor o menos.'],
+['Madera procesada','Contrachapado, tableros de partículas, tableros de fibra orientada o chapa, con pegamento, calor o presión.'],
+['Componentes instalados','Madera instalada en forma permanente en vehículos o contenedores de flete.'],
+['Barriles y cajas especiales','Barriles de vino y licores calentados en su fabricación. Cajas de regalo de madera procesada libre de plagas.'],
+['Aserrín, virutas y lana de madera','Exentos.']])+
+W('Al recibir una estiba de madera para exportar o importada, revise el sello NIMF-15. Sin sello, no continúa el proceso.')},
+
+{id:"t6",titulo:"6. Contenedores",html:
+'<h2>Contenedores</h2>'+
+P('El contenedor es una caja de alta resistencia al manipuleo, diseñada para transportar mercancías. La NTC 830 lo define con estas condiciones:')+
+UL(['Equipo de transporte de carácter permanente y suficientemente resistente para su empleo repetido.','Diseñado para transportar mercancías por uno o varios modos, sin trasbordo.','Con dispositivos que facilitan su manejo al pasar de un medio de transporte a otro.','Fácil de llenar y vaciar.','Volumen interno de 1,0 m³ (35,3 ft³) o más.','No incluye vehículos ni embalajes convencionales.'])+
+P('Ha cobrado tanta importancia que el diseño de los medios de transporte, las carreteras, los centros de transferencia y los equipos de manipulación se supeditan a su operación. Según UNCTAD (2014), más del 15 % del peso de la carga movilizada por mar en 2013 fue contenerizada.')+
+'<h3>Ventajas</h3>'+
+UL(['Agiliza el manipuleo de la carga en forma segura.','Se adapta a los tipos de transporte.','Facilita el apilamiento, es decir, el almacenamiento vertical.','Sirve como unidad de carga.','Existe un tipo para cada carga.','Mayor seguridad por su alta resistencia.'])+
+'<h3>Tamaños</h3>'+
+P('Los contenedores marítimos se designan por su dimensión mayor: 20, 40, 45 y 53 pies.')+
+T(['Contenedor','Largo externo (mm)','Ancho (mm)','Alto estándar (mm)','Alto high cube (mm)'],[['20 pies','6.058','2.438','2.591','2.896'],['40 pies','12.192','2.438','2.591','2.896'],['45 pies','13.716','2.438','2.591','2.896'],['53 pies','16.154','2.438','2.591','2.896']])+
+BARS([['20 pies',6.058],['40 pies',12.192],['45 pies',13.716],['53 pies',16.154]],17,' m')+
+'<h3>Tipos de contenedor</h3>'+
+T(['Tipo','Uso'],[
+['Carga general (dry van)','Cargas secas: bolsas, cajas, máquinas, muebles.'],
+['Refrigerado (reefer)','Equipo propio de frío. Verduras, frutas, carnes.'],
+['Ventilado','Aberturas de ventilación laterales superior e inferior. Café en grano.'],
+['Térmico (thermal)','Paredes, puertas, piso y techo aislados. Reduce el gradiente térmico.'],
+['Cisterna (tank)','Líquidos, incluso peligrosos: químicos tóxicos, corrosivos, combustibles, aceites, leche, vino.'],
+['Granel seco (dry bulk)','Granos, con descargue por precipitación.'],
+['Open top','Techo removible de lona. Maquinaria pesada, mármol, vidrio, maderas. Carga y descarga superior.'],
+['Side door','Apertura lateral. Cargas que no pasan por las puertas convencionales. Ideal en estaciones ferroviarias.'],
+['Flat rack','Plataforma con terminales fijos o rebatibles, sin laterales. Bobinas, cables, vehículos pesados, maquinaria especial.']])+
+'<h3>Capacidades por tipo (dimensiones internas)</h3>'+
+T(['Tipo','Largo x ancho x alto (mm)','Carga máx. (kg)','Peso bruto máx. (kg)','Capacidad (m³)'],[
+['Dry van 20 pies','5.898 x 2.352 x 2.393','28.180','30.480','33,2'],
+['Dry van 40 pies','12.032 x 2.352 x 2.393','28.750','32.500','67,7'],
+['Dry van 40 pies HC','12.032 x 2.352 x 2.698','28.560','32.500','76,4'],
+['Reefer 40 pies','11.561 x 2.280 x 2.249','27.700','32.500','59,3'],
+['Reefer 40 pies HC','11.561 x 2.268 x 2.553','29.150','34.000','67,0'],
+['Open top 20 pies','5.889 x 2.345 x 2.346','28.120','30.480','32,4'],
+['Open top 40 pies','12.024 x 2.352 x 2.324','30.140','32.500','65,7'],
+['Flat rack 20 pies','5.940 x 2.345 x 2.346','28.470','32.500','—'],
+['Flat rack 40 pies','12.132 x 2.400 x 2.135','40.000','45.000','—'],
+['Tanque','—','27.410 (útil)','30.480','21.000 litros']])+
+BARS([['Dry 20 pies',33.2],['Dry 40 pies',67.7],['Dry 40 HC',76.4],['Reefer 40',59.3],['Reefer 40 HC',67],['Open top 40',65.7]],80,' m³')+
+N('Conocer pesos y dimensiones permite preparar la carga y planear la estiba. Las medidas del 20 pies reefer y del granel seco están en el Anexo 2 del libro. Hapag-Lloyd publica brochures técnicos de contenedores y su embalaje.')+
+'<h3>Normas ISO asociadas</h3>'+
+T(['Norma','Tema'],[
+['ISO 668','Clasificación, medidas y capacidades.'],
+['ISO 1496-1 a 1496-5','Especificaciones y ensayos: carga general, térmicos, cisterna, granel seco, plataforma.'],
+['ISO 3874','Manipulación y sujeción.'],
+['ISO 6346','Codificación, identificación y marcas.'],
+['ISO 9897','Intercambio de datos de equipos.'],
+['ISO 10374','Identificación automática.']])},
+
+{id:"t7",titulo:"7. Etiquetado y rotulado",html:
+'<h2>Etiquetado y rotulado logístico</h2>'+
+P('La etiqueta es un rótulo de reducido tamaño que se adhiere al envase o embalaje, identifica el producto y da información al usuario. A veces la información se rotula directamente en el embalaje.')+
+'<h3>Funciones del etiquetado</h3>'+
+UL(['Dialogar con el consumidor mediante buen merchandising.','Ahorrar tiempo al consumidor y facilitar su elección.','Facilitar el control al productor y a las entidades gubernamentales: fechas de fabricación y vencimiento, contenido e inventario por código de barras.','Dar indicaciones para el manejo y administración del producto o empaque.'])+
+P('En alimentos, y de forma comparable en farmacéutica, hay etiquetas de identificación, de caracterización nutricional o composición, de procesamiento o tratamiento, y rotulado con información logística.')+
+'<h3>Partes de una etiqueta de alimentos</h3>'+
+T(['Elemento','Detalle'],[['Producto','Nombre del producto'],['Lote','Identificación del lote'],['Permisos','Permisos del Ministerio de Salud'],['Vencimiento','Fecha de vencimiento ("mejor consumir antes de")'],['Origen','País de origen'],['Uso','Modo de empleo'],['Empresa','Identificación de la empresa'],['Composición','Lista de ingredientes y aditivos'],['Conservación','Instrucciones para conservación'],['Contenido','Peso (neto escurrido), volumen o número de unidades']])+
+'<h3>Rotulado logístico</h3>'+
+P('Ayuda a la manipulación con información preventiva: confección de arrumes según la capacidad portante y el peso de la caja, tipo de manipulación y equipos recomendados. En Colombia el proceso de estandarización lo impulsa GS1 Colombia, antes IAC. GS1 es una asociación internacional de 105 organizaciones en unos 150 países que armoniza la logística.')+
+T(['Dato logístico en el corrugado','Unidad'],[['Número de cajas por tendido','Cantidad'],['Número de tendidos por estiba','Cantidad'],['Arrume máximo de estibas','Cantidad'],['Arrume máximo de cajas','Cantidad'],['Peso de la caja y de la estiba','kg'],['Dimensiones de la estiba','cm'],['ECV, lote del corrugado y lote de la caja','—'],['Plano de estibado y pictogramas','—'],['Observaciones: no pisar, alejar de productos con colores y olores extraños, almacenar en lugar fresco y seco, no arrumar en el piso','—'],['Cuidados especiales: temperatura, iluminación','—']])+
+N('Cada país tiene su legislación de etiquetado: tamaño de letras, contenido, idioma y unidades de medida. Antes de exportar, conozca la del país de destino.')+
+'<h3>Sistemas de identificación</h3>'+
+FIG(F_BARRAS,'Figura 7. El código de barras se compone de símbolo y código.')+
+T(['Sistema','Cómo funciona'],[
+['Código de barras','Patentado en Estados Unidos en 1949. Se compone de símbolo (las barras) y código (la parte numérica). El tipo (EAN, UCC) depende de producto, mercado y estándar. No es inteligente ni es un archivo: funciona como llave de acceso a una base de datos.'],
+['Código 2D','Desarrollado en la década de 1980. Almacena información del producto y sus características, como un archivo.'],
+['RFID','Identificación por radiofrecuencia mediante etiquetas o chips. Permite identificar y monitorear de forma automática e instantánea el tipo de producto, su estado y el inventario. Aporta trazabilidad desde el recibo, la ubicación en el almacén y el control en tiempo real.']])+
+P('Etiquetas de riesgo y manipulación previenen el daño de la mercancía durante la cadena de distribución, en especial en cargue, descargue y transporte. El sello NIMF-15 es otra forma de rotulado: certifica el tratamiento fitosanitario de la madera.')+
+'<h3>Simbología ISO 7000 para manipulación y transporte</h3>'+
+T(['Símbolo (ISO 7000)','Significado'],[
+['STACKING LIMITATION (0630)','Límite de estiba del embalaje.'],
+['CLAMP HERE (0631)','Indica dónde van las abrazaderas.'],
+['FRAGILE / HANDLE WITH CARE (0621)','Contenido frágil. Manejar con cuidado.'],
+['USE NO HOOKS (0622)','No poner ganchos en el embalaje.'],
+['THIS WAY UP (0623)','Posición correcta del embalaje durante el transporte.'],
+['KEEP AWAY FROM HEAT (0624)','Resguardar del calor en transporte y bodegaje.'],
+['PROTECT FROM HEAT AND RADIOACTIVE (0615)','El contenido se puede deteriorar por calor o radiación.'],
+['SLING HERE (0625)','Dónde poner cadenas para levantar el embalaje.'],
+['KEEP DRY (0626)','Mantener en un ambiente seco.'],
+['CENTRE OF GRAVITY (0627)','Centro de gravedad del embalaje.'],
+['DO NOT ROLL (0628)','No rodar el embalaje durante el almacenamiento.'],
+['NO HAND TRUCK HERE (0629)','Lugares donde no se deben usar carretillas o similares.']])},
+
+{id:"t8",titulo:"8. Mercancías peligrosas",html:
+'<h2>Mercancías peligrosas</h2>'+
+P('Naciones Unidas propone un reglamento modelo con protocolo estricto de embalaje. En Colombia, la NTC 4702-2 regula transporte y embalajes de mercancía peligrosa. La identificación y el rotulado los regula la ONU, que clasifica los productos en nueve clases según el tipo de riesgo, con subclases. Las etiquetas de riesgo del libro siguen a IATA/OACI.')+
+'<h3>Las nueve clases</h3>'+
+F_CLASES+
+P('Los colores se muestran donde la fuente los especifica: clase 1 fondo naranja, 2.1 rojo, 2.2 verde y 4.3 azul. Para las demás consulte la etiqueta completa en el Anexo 6 del libro.')+
+'<h3>Clase 1: explosivos</h3>'+
+P('Elementos que pueden reventar un cuerpo con violencia y ruido, o producir dilatación repentina de gas. Ejemplos: pólvora, municiones, dinamita, granadas.')+
+T(['División','Riesgo'],[['1.1','Explosión masiva'],['1.2','Proyección, sin explosión masiva'],['1.3','Incendio y pequeños efectos de onda explosiva o de proyección, sin explosión masiva'],['1.4','Ningún riesgo considerable'],['1.5','Sustancias muy poco sensibles con riesgo de explosión masiva'],['1.6','Sustancias extremadamente insensibles, sin riesgo de explosión masiva']])+
+W('Los artículos con etiquetas de explosivos de las divisiones 1.1, 1.2, 1.4F, 1.5 y 1.6 normalmente están prohibidos para transporte aéreo.')+
+'<h3>Clases 2 a 4: gases, líquidos y sólidos</h3>'+
+T(['Clase','Definición','Ejemplos'],[
+['2 · Gas','Fluido sin forma ni volumen propios. 2.1 inflamable, 2.2 no inflamable y no tóxico, 2.3 tóxico.','Aerosoles, gas propano, recargas de encendedores.'],
+['3 · Líquido inflamable','Cuerpo que tiende a encenderse con llama y se adapta a la forma del recipiente. Sin divisiones.','Gasolina, pinturas, barnices, lacas, alcohol.'],
+['4 · Sólidos inflamables','4.1 sólidos inflamables. 4.2 riesgo de combustión espontánea. 4.3 emiten gases inflamables en contacto con agua.','Magnesio, fósforo.']])+
+'<h3>Clases 5 a 9</h3>'+
+T(['Clase','Definición','Ejemplos'],[
+['5 · Comburentes y peróxidos orgánicos','Comburentes: sin ser necesariamente combustibles, liberan oxígeno y facilitan la combustión de otras sustancias. Peróxidos orgánicos: sensibles al impacto y afectan la vista.','Abonos de nitrato amónico. Peróxidos orgánicos sólidos o líquidos.'],
+['6 · Tóxicas e infecciosas','Tóxicas: causan muerte o dañan la salud si se tragan, inhalan o tocan la piel. Infecciosas: contienen microbios patógenos, incluidos especímenes de diagnóstico y desechos clínicos.','Insecticidas, plaguicidas, virus, bacterias.'],
+['7 · Radiactivo','Cuerpos que emiten partículas por desintegración espontánea del átomo. Sin divisiones.','Uranio.'],
+['8 · Corrosivos','Causan daño severo por acción química en tejidos vivos o pueden destruir otras cargas y medios de transporte. Sin divisiones.','Ácido fosfórico, ácido sulfúrico, mercurio.'],
+['9 · Diversas','Riesgos no previstos en las otras clases al transportarse por vía aérea. Sin divisiones.','Materiales magnetizados, motores de combustión interna, equipos con baterías.']])+
+'<h3>Qué hacer en el almacén</h3>'+
+UL(['Identificar la clase y subclase en la etiqueta de riesgo antes de aceptar la carga.','Verificar que la etiqueta de manipulación acompañe al embalaje.','No recibir embalajes de mercancía peligrosa sin etiquetas legibles.','Tener presente que la carga corrosiva puede destruir otras cargas y medios de transporte.','Los envases de agroquímicos y los productos vencidos son residuos especiales.'])},
+
+{id:"t9",titulo:"9. Inspección de calidad",html:
+'<h2>Calidad y ensayos de embalajes</h2>'+
+P('La calidad del embalaje es su capacidad de cumplir las expectativas del cliente a un costo razonable. Se verifica con pruebas y ensayos que comprueban la idoneidad del envase frente al producto y al ciclo de distribución al que se somete.')+
+'<h3>Marco normativo</h3>'+
+P('Las leyes son de obligatorio cumplimiento. Las normas son recomendatorias, pero si no se siguen aumenta la inconformidad con el producto.')+
+UL(['Normativa técnica internacional (ISO, ASTM, ASME).','Leyes y normativas internacionales para productos de exportación.','Leyes nacionales y normativa técnica colombiana (Icontec, NTC).','Normas y políticas internas de la empresa productora.','Requisitos mínimos de calidad que exige el mercado.'])+
+'<h3>Ensayos habituales por material</h3>'+
+T(['Ensayo','Se aplica a'],[
+['Análisis dimensional','Ancho, largo, espesores, profundidad'],
+['Resistencia a la compresión','Cartón'],
+['Resistencia al impacto','Cartón, madera, metales'],
+['Rigidez','Cajas de cartón o plástico'],
+['Tracción, elongación y rasgado','Papel y películas flexibles'],
+['Permeabilidad al agua, gases y grasa','Plásticos y papel'],
+['Migración','Plásticos, metales, papeles, vidrio'],
+['Estanqueidad y evaluación de vacío','Envases cerrados'],
+['Vibración y presión hidrostática','Embalajes de transporte']])+
+P('Para evaluar embalajes de transporte se usan equipos de simulación: máquina de vibración vertical, compresión vertical de pallets y de cajas, ensayo de caída e impacto vertical, y cámara de acondicionamiento.')+
+'<h3>Hermeticidad de latas de hojalata</h3>'+
+P('La norma mexicana NMX-EE-73 detecta fugas por agujeros pequeños, perforaciones y defectos de engargolado.')+
+UL(['Se abre la lata por una tapa sin dañar el engargolado, se vacía y se lava. Seca a 311 K (38 °C) no menos de ocho horas.','Se sumerge el envase en agua a 38 °C, con aire a 69,042 kPa para costura cementada y 138,085 kPa para otros recipientes sanitarios.','Se mantiene cinco minutos. Una fuga se ve como corriente estacionaria de burbujas o escape intermitente.','Se gira 180° y se repite para ver una nueva área.','El informe registra muestras probadas, defectuosas, qué tapa se abrió y nombre del operador.'])+
+'<h3>Inspección de botellas de vidrio para leche</h3>'+
+P('La norma NMX-EE-024 las clasifica en tres estilos: A cilíndrico, B rectangular y C otras formas. Debe resistir un choque térmico mínimo de 315 K (42 °C) y admite una desviación de verticalidad máxima de 1,32 mm por cada 100 mm de altura.')+
+T(['Clase de defecto','Ejemplos'],[
+['Críticos','Rebaba en el labio de la corona, picos o filamentos, burbujas superficiales fáciles de quebrar, partículas de vidrio fundido adheridas al interior.'],
+['Mayores','Labio partido, desportillado en superficie de sellar, corona ovalada u ondulada, estrelladuras, puntos negros o piedras mayores de 1,6 mm, mala distribución de vidrio, aletas peligrosas para el manejo.'],
+['Menores','Corona áspera, burbujas externas, grietas en cuello o cuerpo, costuras, marcas de cuchilla, defectos de apariencia no perceptibles a simple vista.']])+
+UL(['Un artículo con defecto crítico se clasifica como crítico aunque tenga mayores y menores.','Con defectos mayores pero sin críticos, se clasifica como mayor.','Solo es menor si no tiene críticos ni mayores.','Marcado del producto: marca o símbolo del fabricante, número de molde y año de fabricación.','Las botellas se agrupan en charolas o cajas de corrugado con resistencia adecuada.'])+
+'<h3>Prueba de choque</h3>'+
+P('La norma NMX-EE-98 determina la fragilidad de un producto por su aceleración de falla. Tiene tres métodos: A (pulso trapezoidal), B (medio seno) y C (velocidad crítica). Si no hay datos de falla se parte de una aceleración máxima de 15 g. El informe incluye identificación del producto, método de fijación, altura de caída y descripción de los daños.')},
+
+{id:"t10",titulo:"10. Recibo y despacho",html:
+'<h2>Recibo y despacho: procedimiento aplicado</h2>'+
+P('Esta pestaña integra los contenidos anteriores en un flujo de trabajo. Las listas están derivadas del libro, no son una norma.')+
+FIG(F_FLUJO,'Figura 8. Flujo básico de la mercancía en el almacén.')+
+'<h3>1. Recibo</h3>'+
+'<ul class="chk">'+['Embalaje íntegro: sin golpes, aplastamiento, humedad ni roturas.','Cierres y sellos intactos (inviolabilidad).','Latas sin abombamiento ni cierres deformados. Botellas sin defectos críticos.','Pallet de madera con sello NIMF-15 si la operación es de comercio exterior.','Rótulo logístico legible: cajas por tendido, arrume máximo, peso, ECV y pictogramas.','Pictogramas ISO 7000 presentes y coherentes con la carga.','Etiquetas de riesgo y de manipulación en mercancía peligrosa.','Código de barras, 2D o RFID legible y coincidente con el documento.','Fechas de fabricación y vencimiento y lote conformes.','Datos del contenedor visibles y sellos conformes.'].map(x=>'<li><label><input type="checkbox">'+x+'</label></li>').join('')+'</ul>'+
+'<h3>2. Almacenamiento</h3>'+
+'<ul class="chk">'+['Carga sobre pallet, nunca directamente en el piso.','Cajas de corrugado arrumadas en columna, no trabadas.','Arrume respetando el máximo indicado en el rótulo.','Producto sensible a humedad, calor o luz ubicado según sus símbolos (KEEP DRY, KEEP AWAY FROM HEAT).','Mercancía peligrosa identificada por clase y subclase.','Almacenar en lugar fresco y seco, alejado de productos con olores o colores extraños.'].map(x=>'<li><label><input type="checkbox">'+x+'</label></li>').join('')+'</ul>'+
+'<h3>3. Despacho</h3>'+
+'<ul class="chk">'+['Carga unitarizada con película extensible, flejes y esquineros.','Peso y dimensiones compatibles con el tipo de contenedor o vehículo.','Aprovechamiento del espacio superior a 80 %.','Bolsas inflables o relleno autorizado donde haya espacios vacíos.','Estiba con sello NIMF-15 en exportaciones.','Documentación y etiquetado conforme a la legislación del país de destino.','Mercancía peligrosa con embalaje y etiquetas conformes a la NTC 4702-2.'].map(x=>'<li><label><input type="checkbox">'+x+'</label></li>').join('')+'</ul>'}
+],
+preguntas:[
+{q:"En el ejemplo de la cerveza, ¿qué constituye el empaque terciario?",o:["La botella de vidrio", "La canasta que agrupa las botellas", "El pallet con las canastas unificado por película plástica", "La etiqueta de la botella"],c:2},
+{q:"¿Cuál es un riesgo mecánico para el embalaje?",o:["Resecamiento por humedad", "Compresión o aplastamiento en el apilamiento", "Migración de gases", "Cambios de temperatura"],c:1},
+{q:"Para distribución de exportación, el ECV del corrugado debe ser:",o:["Entre 430 y 520 kgf/m", "Entre 520 y 800 kgf/m", "Menor de 430 kgf/m", "Mayor de 800 kgf/m"],c:3},
+{q:"Las cajas arrumadas en forma trabada, como pared de ladrillos, pierden hasta:",o:["45 % de su resistencia", "10 % de su resistencia", "25 % de su resistencia", "80 % de su resistencia"],c:0},
+{q:"¿Cuáles son las dimensiones del pallet americano?",o:["800 x 1200 mm", "1000 x 1000 mm", "1200 x 1500 mm", "1000 x 1200 mm"],c:3},
+{q:"¿Qué evidencia el tratamiento fitosanitario de un pallet de madera en comercio internacional?",o:["El sello NIMF-15 estampado", "El color de la madera", "La factura del proveedor", "El peso del pallet"],c:0},
+{q:"Un vehículo o contenedor se considera bien utilizado cuando el aprovechamiento del espacio supera:",o:["50 %", "60 %", "70 %", "80 %"],c:3},
+{q:"El símbolo ISO STACKING LIMITATION indica:",o:["Que el contenido es frágil", "Dónde colocar las eslingas", "El límite de estiba del embalaje", "Que debe mantenerse seco"],c:2},
+{q:"Las sustancias corrosivas, como el ácido sulfúrico, pertenecen a la clase:",o:["8", "3", "6", "9"],c:0},
+{q:"¿Cuál es la diferencia entre el código de barras y el código 2D?",o:["El de barras guarda información como un archivo; el 2D no", "El de barras es una llave a una base de datos; el 2D almacena información del producto", "Ambos funcionan por radiofrecuencia", "El 2D solo se usa en mercancía peligrosa"],c:1},
+{q:"¿Qué material tiene la mayor participación en el mercado colombiano de embalajes?",o:["Plástico", "Vidrio", "Papel y cartón", "Metal"],c:2},
+{q:"¿Qué mide el ECV de una caja de corrugado?",o:["La resistencia a la compresión vertical", "El espesor de la onda", "La humedad del cartón", "El número de caras"],c:0},
+{q:"Según la NTC 830, un contenedor tiene un volumen interno de:",o:["0,5 m³ o más", "1,0 m³ o más", "5,0 m³ o más", "10 m³ o más"],c:1},
+{q:"¿Qué contenedor se usa para cargas que no pueden cargarse por las puertas, como maquinaria o mármol?",o:["Dry van", "Reefer", "Open top", "Tank"],c:2},
+{q:"Una lata metálica que recibe un impacto fuerte debe descartarse porque:",o:["Pierde su color", "La película protectora puede desprenderse y reaccionar con el producto", "Cambia de peso", "Se vuelve magnética"],c:1},
+{q:"Las bolsas inflables dentro del contenedor sirven para:",o:["Absorber humedad", "Amarrar la carga", "Identificar la carga", "Separar pallets entre sí o de las paredes y amortiguar golpes"],c:3},
+{q:"¿Qué inconveniente tiene el poliestireno expandido (icopor) en las bodegas?",o:["Absorbe agua", "Atrae polvo por su carga electrostática", "Se corroe", "Se pudre"],c:1},
+{q:"Los líquidos inflamables, como la gasolina y las pinturas, pertenecen a la clase:",o:["Clase 2", "Clase 4", "Clase 3", "Clase 5"],c:2},
+{q:"Los artículos con etiquetas de explosivos 1.1, 1.2, 1.4F, 1.5 y 1.6 normalmente están prohibidos en:",o:["Transporte aéreo", "Transporte marítimo", "Transporte férreo", "Almacenamiento en bodega"],c:0},
+{q:"En una botella de vidrio, una rebaba en el labio de la corona se clasifica como defecto:",o:["Menor", "Mayor", "Crítico", "De apariencia"],c:2}
+]};
+
+/* ---------- lógica ---------- */
+const $=id=>document.getElementById(id);
+const show=(id,v)=>$(id).classList.toggle('hide',!v);
+const svs={get(){try{return JSON.parse(sessionStorage.getItem('u')||'null')}catch(e){return null}},set(v){try{sessionStorage.setItem('u',JSON.stringify(v))}catch(e){}}};
+const post=o=>DEMO?Promise.resolve({ok:true}):fetch(URL_API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(o)}).then(r=>r.json());
+document.title=CONTENIDO.titulo;$('ttl').textContent=CONTENIDO.titulo;
+
+function iniciarCurso(u){
+  show('reg',false);show('curso',true);
+  $('who').textContent=u.nombre+' · '+u.institucion+' · '+u.asignatura;
+  const tabs=CONTENIDO.pestanas.map(p=>({id:p.id,titulo:p.titulo,html:p.html}));
+  tabs.push({id:'ev',titulo:(CONTENIDO.pestanas.length+1)+'. Evaluación',eval:true});
+  $('tabs').innerHTML='';
+  tabs.forEach((t,i)=>{const b=document.createElement('button');b.textContent=t.titulo;b.onclick=()=>abrir(i);$('tabs').appendChild(b)});
+  function abrir(i){
+    [...$('tabs').children].forEach((b,j)=>b.classList.toggle('on',i===j));
+    const t=tabs[i];
+    if(t.eval)evaluacion(u);else $('panel').innerHTML=t.html;
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  abrir(0);
+}
+
+const ex={get(){try{return JSON.parse(sessionStorage.getItem('ex')||'null')}catch(e){return null}},set(v){try{sessionStorage.setItem('ex',JSON.stringify(v))}catch(e){}},clr(){try{sessionStorage.removeItem('ex')}catch(e){}}};
+const hora=()=>new Date().toLocaleTimeString('es-CO');
+const fmt=n=>Number(n).toFixed(2).replace('.',',');
+
+function evaluacion(u){
+  const prev=svs.get(),ya=prev&&prev.nota!=null,E=ex.get(),nq=CONTENIDO.preguntas.length;
+  $('panel').innerHTML='<h2>Evaluación</h2>'+
+  UL([nq+' preguntas de selección múltiple. Total: '+PUNTAJE+' puntos.','Se abre en una ventana flotante a pantalla completa. Un solo envío.','Se registran los intentos de salir de la ventana: cambiar de pestaña o de aplicación, salir de pantalla completa, recargar la página, copiar, pegar, abrir el menú contextual o usar atajos de teclado.','La primera incidencia es una advertencia. Desde la segunda se descuentan '+fmt(DESC)+' puntos por cada una.','Con '+MAXINC+' incidencias la evaluación se cierra y se envía automáticamente.','El docente ve el número y el detalle de las incidencias.'])+
+  (ya?'<div class="res">Nota: '+fmt(prev.nota)+' / '+PUNTAJE+'</div><p class="msg okc">Ya enviaste esta evaluación.</p>':'<p><button id="bs">'+(E&&E.activo?'Reanudar evaluación':'Iniciar evaluación')+'</button></p>');
+  if(!ya)$('bs').onclick=()=>examen(u);
+}
+
+function examen(u){
+  const Q=CONTENIDO.preguntas,ov=$('ov'),box=$('ovin');
+  let E=ex.get();if(!E||!E.activo)E={activo:true,inc:0,log:[],resp:{}};
+  ex.set(E);
+  let cierre=false,enviando=false,ultimo=0,saliendo=false;
+  box.innerHTML='<div class="ovh"><b>Evaluación · '+Q.length+' preguntas · '+PUNTAJE+' puntos</b><span id="st"></span><button id="pc" class="sm" type="button">Pantalla completa</button></div><div id="ban"></div><div id="qs"></div><p><button id="be" type="button">Enviar evaluación</button></p><div id="em" class="msg"></div>';
+  ov.classList.remove('hide');document.body.style.overflow='hidden';ov.scrollTop=0;
+  const pedirPC=()=>{try{const f=ov.requestFullscreen||ov.webkitRequestFullscreen;if(f){const r=f.call(ov);if(r&&r.catch)r.catch(()=>{})}}catch(e){}};
+  pedirPC();$('pc').onclick=pedirPC;
+  Q.forEach((p,i)=>{
+    const d=document.createElement('div');d.className='q';
+    const h=document.createElement('p');h.textContent=(i+1)+'. '+p.q;d.appendChild(h);
+    p.o.forEach((o,k)=>{const l=document.createElement('label');const r=document.createElement('input');r.type='radio';r.name='q'+i;r.value=k;if(E.resp[i]===k)r.checked=true;r.onchange=()=>{E.resp[i]=k;ex.set(E)};l.appendChild(r);l.appendChild(document.createTextNode(o));d.appendChild(l)});
+    $('qs').appendChild(d);
+  });
+  const desc=()=>Math.max(0,E.inc-LIBRES)*DESC;
+  const estado=()=>{$('st').textContent='Incidencias: '+E.inc+' / '+MAXINC+' · Descuento: '+fmt(desc())+' pts'};
+  estado();
+  function reg(tipo,ms){
+    if(cierre||saliendo)return;
+    const t=Date.now();if(t-ultimo<(ms||1500))return;ultimo=t;
+    E.inc++;E.log.push(tipo+' ('+hora()+')');ex.set(E);estado();
+    const b=$('ban');
+    if(E.inc<=LIBRES){b.className='ban';b.textContent='Advertencia: '+tipo+'. Registrado. La próxima incidencia descuenta '+fmt(DESC)+' puntos.'}
+    else{b.className='ban red';b.textContent='Incidencia registrada: '+tipo+'. Descuento acumulado: '+fmt(desc())+' puntos. Quedan '+Math.max(0,MAXINC-E.inc)+' antes del cierre automático.'}
+    if(E.inc>=MAXINC)enviar(true);
+  }
+  const H={
+    vis:()=>{if(document.hidden)reg('Cambio de pestaña o ventana')},
+    blur:()=>reg('Pérdida de foco de la ventana'),
+    fs:()=>{if(!document.fullscreenElement&&!document.webkitFullscreenElement)reg('Salida de pantalla completa')},
+    ctx:e=>{e.preventDefault();reg('Menú contextual',400)},
+    cp:e=>{e.preventDefault();reg('Intento de '+(e.type==='copy'?'copiar':e.type==='cut'?'cortar':'pegar'),400)},
+    key:e=>{
+      const k=(e.key||'').toLowerCase(),c=e.ctrlKey||e.metaKey;
+      if((c&&['c','v','x','p','s','u','a'].indexOf(k)>-1)||k==='f12'||(c&&e.shiftKey&&['i','j','c'].indexOf(k)>-1)){e.preventDefault();reg('Atajo de teclado bloqueado',400)}
+    },
+    keyup:e=>{if(e.key==='PrintScreen'){reg('Captura de pantalla',400)}},
+    unl:e=>{saliendo=true;setTimeout(()=>{saliendo=false},1000);e.preventDefault();e.returnValue=''}
+  };
+  document.addEventListener('visibilitychange',H.vis);window.addEventListener('blur',H.blur);
+  document.addEventListener('fullscreenchange',H.fs);document.addEventListener('webkitfullscreenchange',H.fs);
+  document.addEventListener('contextmenu',H.ctx);['copy','cut','paste'].forEach(t=>document.addEventListener(t,H.cp));
+  document.addEventListener('keydown',H.key);document.addEventListener('keyup',H.keyup);window.addEventListener('beforeunload',H.unl);
+  function limpiar(){
+    document.removeEventListener('visibilitychange',H.vis);window.removeEventListener('blur',H.blur);
+    document.removeEventListener('fullscreenchange',H.fs);document.removeEventListener('webkitfullscreenchange',H.fs);
+    document.removeEventListener('contextmenu',H.ctx);['copy','cut','paste'].forEach(t=>document.removeEventListener(t,H.cp));
+    document.removeEventListener('keydown',H.key);document.removeEventListener('keyup',H.keyup);window.removeEventListener('beforeunload',H.unl);
+    try{if(document.fullscreenElement)document.exitFullscreen();else if(document.webkitFullscreenElement)document.webkitExitFullscreen()}catch(e){}
+  }
+  function enviar(auto){
+    if(enviando)return;
+    cierre=true;enviando=true;
+    let ok=0;Q.forEach((p,i)=>{if(E.resp[i]===p.c)ok++});
+    const nota=Math.max(0,Math.round((ok/Q.length*PUNTAJE-desc())*100)/100);
+    $('be').disabled=true;$('em').className='msg';$('em').textContent='Enviando…';
+    post({action:'nota',nombre:u.nombre,institucion:u.institucion,asignatura:u.asignatura,correo:u.correo,nota:nota,incidencias:E.inc,detalle:E.log.join(' | ')})
+      .then(r=>{if(r&&r.error)throw 0;
+        u.nota=nota;svs.set(u);ex.clr();limpiar();
+        box.innerHTML='<div class="ovh"><b>Resultado</b></div><div class="res">Nota: '+fmt(nota)+' / '+PUNTAJE+'</div><p>Aciertos: '+ok+' de '+Q.length+'.</p><p>Incidencias: '+E.inc+'. Descuento: '+fmt(desc())+' puntos.'+(auto?' La evaluación se cerró automáticamente por exceso de incidencias.':'')+'</p><p><button id="bc" type="button">Cerrar</button></p>';
+        $('bc').onclick=()=>{ov.classList.add('hide');document.body.style.overflow='';evaluacion(u)};
+      })
+      .catch(()=>{enviando=false;$('be').disabled=false;$('em').className='msg err';$('em').textContent='No se pudo enviar. Verifica la conexión y pulsa Enviar evaluación.'});
+  }
+  $('be').onclick=()=>{
+    for(let i=0;i<Q.length;i++)if(E.resp[i]===undefined){$('em').className='msg err';$('em').textContent='Responde la pregunta '+(i+1)+'.';return}
+    enviar(false);
+  };
+  if(E.inc>=MAXINC)enviar(true);
+}
+
+function registro(){
+  if(DEMO)show('demo',true);
+  $('fr').onsubmit=e=>{
+    e.preventDefault();
+    const u={nombre:$('n').value.trim(),institucion:$('i').value.trim(),asignatura:$('a').value.trim(),correo:$('c').value.trim()};
+    const m=$('rm');m.className='msg err';
+    if(!u.nombre||!u.institucion||!u.asignatura){m.textContent='Completa todos los campos.';return}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.correo)){m.textContent='Correo no válido.';return}
+    $('bi').disabled=true;m.className='msg';m.textContent='Registrando…';
+    post(Object.assign({action:'registro'},u)).then(r=>{if(r&&r.error)throw 0;svs.set(u);iniciarCurso(u)})
+      .catch(()=>{$('bi').disabled=false;m.className='msg err';m.textContent='No se pudo registrar. Verifica la conexión e intenta de nuevo.'});
+  };
+}
+
+function docente(){
+  show('doc',true);
+  const clave=prompt('Clave docente');
+  const m=$('dm');
+  if(!clave){m.className='msg err';m.textContent='Acceso cancelado.';return}
+  if(DEMO){m.className='msg err';m.textContent='Configura URL_API para consultar los registros.';return}
+  m.textContent='Cargando…';
+  fetch(URL_API+'?action=leer&clave='+encodeURIComponent(clave)).then(r=>r.json()).then(d=>{
+    if(!d||d.error||!Array.isArray(d.registros)){m.className='msg err';m.textContent='No autorizado.';return}
+    m.textContent='';show('dp',true);
+    const R=d.registros;
+    const uniq=k=>[...new Set(R.map(x=>x[k]).filter(Boolean))].sort();
+    const fill=(id,k)=>{const s=$(id);s.innerHTML='';const o=document.createElement('option');o.value='';o.textContent='Todas';s.appendChild(o);uniq(k).forEach(v=>{const p=document.createElement('option');p.value=v;p.textContent=v;s.appendChild(p)});s.onchange=pintar};
+    fill('fi','institucion');fill('fa','asignatura');
+    function pintar(){
+      const fi=$('fi').value,fa=$('fa').value;
+      const V=R.filter(x=>(!fi||x.institucion===fi)&&(!fa||x.asignatura===fa));
+      const tb=$('tb');tb.innerHTML='';
+      V.forEach(x=>{const tr=document.createElement('tr');['nombre','institucion','asignatura','correo','nota','fecha','incidencias'].forEach(k=>{const td=document.createElement('td');td.textContent=x[k]==null?'':x[k];if(k==='incidencias'&&x.detalle)td.title=x.detalle;tr.appendChild(td)});tb.appendChild(tr)});
+      const N=V.map(x=>x.nota).filter(n=>n!==''&&n!=null&&!isNaN(n)).map(Number);
+      $('cnt').textContent='Registros: '+V.length;
+      $('avg').textContent='Promedio: '+(N.length?(N.reduce((a,b)=>a+b,0)/N.length).toFixed(2):'—');
+    }
+    pintar();
+  }).catch(()=>{m.className='msg err';m.textContent='No se pudo consultar el servidor.'});
+}
+
+if(/[?&]docente=1(&|$)/.test(location.search))docente();
+else if(svs.get()&&ex.get()&&ex.get().activo){const E=ex.get();E.inc++;E.log.push('Recarga o cierre de la página ('+hora()+')');ex.set(E);iniciarCurso(svs.get())}
+else{const u=svs.get();if(u)iniciarCurso(u);else{show('reg',true);registro()}}
+</script>
+</body>
+</html>
